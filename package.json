@@ -9,7 +9,7 @@
     "url": "https://github.com/therealgorgan/google-tasks-vscode-extension"
   },
   "icon": "resources/logo.png",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "aiKey": "c5722733-cc25-4ee0-bf89-febeea8257da",
   "engines": {
     "vscode": "^1.52.0"
@@ -24,7 +24,10 @@
     "productivity"
   ],
   "activationEvents": [
-    "onView:googleTasks"
+    "onView:googleTasks",
+    "onCommand:googleTasks.initUserGAuth",
+    "onCommand:googleTasks.openCalendar",
+    "onCommand:googleTasks.refresh"
   ],
   "main": "./dist/extension.js",
   "contributes": {

@@ -1,4 +1,4 @@
-import { commands, window } from 'vscode'
+import { commands, window, ExtensionContext, Disposable } from 'vscode'
 
 import telemetry from '../../telemetry'
 import { removeToken } from '../Token'
@@ -241,13 +241,18 @@ const commandsList = {
   },
 }
 
-export function registerCommands(provider?: ScheduleWebViewProvider): void {
+export function registerCommands(provider?: ScheduleWebViewProvider, context?: ExtensionContext): void {
   if (provider) {
     scheduleWebViewProvider = provider
   }
-  Object.entries(commandsList).forEach(([command, handler]) =>
-    commands.registerCommand(command, sendTelemetry(command, handler))
-  )
+  const disposables: Disposable[] = []
+  Object.entries(commandsList).forEach(([command, handler]) => {
+    const d = commands.registerCommand(command, sendTelemetry(command, handler))
+    disposables.push(d)
+  })
+  if (context) {
+    context.subscriptions.push(...disposables)
+  }
 }
 
 function sendTelemetry(command: string, handler: Function) {

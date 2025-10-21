@@ -43,7 +43,8 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize Calendar provider with OAuth
   initializeCalendarOAuth()
 
-  registerCommands(scheduleWebViewProvider)
+  // Register feature commands
+  registerCommands(scheduleWebViewProvider, context)
 
   // Register calendar command
   const calendarCommand = vscode.commands.registerCommand('googleTasks.openCalendar', () => {
@@ -53,12 +54,21 @@ export function activate(context: vscode.ExtensionContext) {
 
   loadGoogleTasks()
 
-  logExtensionActivated(startTime)
+  logExtensionActivated(context, startTime)
 }
 
-function logExtensionActivated(startTime: [number, number]) {
-  const googleTasks = vscode.extensions.getExtension(extensionQualifiedId)!
-  const googleTasksVersion = googleTasks.packageJSON.version
+function logExtensionActivated(context: vscode.ExtensionContext, startTime: [number, number]) {
+  // Prefer version from this extension's context; fall back to the marketplace extension if available
+  let googleTasksVersion: string = 'dev'
+  try {
+    googleTasksVersion = (context as any)?.extension?.packageJSON?.version || googleTasksVersion
+  } catch { }
+  if (!googleTasksVersion) {
+    const googleTasks = vscode.extensions.getExtension(extensionQualifiedId)
+    if (googleTasks && (googleTasks as any).packageJSON?.version) {
+      googleTasksVersion = (googleTasks as any).packageJSON.version
+    }
+  }
   const [secs, nanoseconds] = process.hrtime(startTime)
   const duration = secs * 1000 + Math.floor(nanoseconds / 1000000)
   console.log(`GoogleTasks (v${googleTasksVersion}) activated in ${duration}ms`)
