@@ -6,3 +6,4 @@ node_modules
 token.json
 .serena/*
 .vscode/*
+resources/credentials.json
