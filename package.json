@@ -10,6 +10,7 @@
   },
   "icon": "resources/logo.png",
   "version": "1.0.2",
+  "license": "MIT",
   "aiKey": "c5722733-cc25-4ee0-bf89-febeea8257da",
   "engines": {
     "vscode": "^1.52.0"
@@ -332,7 +333,7 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
-    "vscode:prepublish": "webpack",
+    "package": "vsce package",
     "publish": "vsce publish --pat $TOKEN"
   },
   "devDependencies": {
