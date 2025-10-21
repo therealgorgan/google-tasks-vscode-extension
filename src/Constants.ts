@@ -1,2 +1,2 @@
 
-export const extensionQualifiedId = `KrishnaPravin.google-tasks`
+export const extensionQualifiedId = `therealgorgan.vscode-google-tasks-extension`
