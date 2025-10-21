@@ -1,6 +1,6 @@
 # Google Tasks for VSCode (unofficial)
 
-## Manage your To-Do list ✅ without going out of your VSCode Editor 🤖.
+## Manage your To-Do list ✅ without going out of your VSCode Editor 🤖
 
 > This is **not** similar to extensions like 🌳 [Todo Tree](https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.todo-tree), which shows a tree view of the //TODO: comments in the source code
 
@@ -21,6 +21,8 @@ You need to have a Google Account with data in Google Tasks application to utili
 ## Privacy Policy
 
 This extension accesses the user data only during the runtime of VSCode application. User data means only the data that is created by the user within the Google Tasks application. The accessed user data is directly displayed within the VSCode Editor. Also, this data is not persisted in any medium and is not sent or shared to any server or any 3rd party application
+
+For a detailed Privacy Policy, please see [PRIVACY_POLICY.md](PRIVACY_POLICY.md)
 
 ## Release Notes
 
