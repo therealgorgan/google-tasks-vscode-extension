@@ -141,49 +141,53 @@
           "dark": "resources/dark-icon-edit.svg",
           "light": "resources/light-icon-edit.svg"
         }
+      },
+      {
+        "command": "googleTasks.setTaskSchedule",
+        "title": "Set Task Schedule",
+        "icon": {
+          "dark": "resources/dark-icon-schedule.svg",
+          "light": "resources/light-icon-schedule.svg"
+        }
+      },
+      {
+        "command": "googleTasks.editTaskSchedule",
+        "title": "Edit Task Schedule",
+        "icon": {
+          "dark": "resources/dark-icon-edit-schedule.svg",
+          "light": "resources/light-icon-edit-schedule.svg"
+        }
+      },
+      {
+        "command": "googleTasks.clearTaskSchedule",
+        "title": "Clear Task Schedule",
+        "icon": {
+          "dark": "resources/dark-icon-clear-schedule.svg",
+          "light": "resources/light-icon-clear-schedule.svg"
+        }
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "googleTasks.addTaskList",
-          "when": "GoogleUserTokenExists",
+          "when": "view == googleTasks && GoogleUserTokenExists",
           "group": "navigation@1"
         },
         {
           "command": "googleTasks.refresh",
-          "when": "GoogleUserTokenExists",
+          "when": "view == googleTasks && GoogleUserTokenExists",
           "group": "navigation@2"
         },
         {
           "command": "googleTasks.showCompleted",
-          "when": "GoogleUserTokenExists && HideCompleted",
+          "when": "view == googleTasks && GoogleUserTokenExists && HideCompleted",
           "group": "navigation@3"
         },
         {
           "command": "googleTasks.hideCompleted",
-          "when": "GoogleUserTokenExists && ShowCompleted",
+          "when": "view == googleTasks && GoogleUserTokenExists && ShowCompleted",
           "group": "navigation@3"
-        },
-        {
-          "command": "googleTasks.refresh",
-          "when": "GoogleUserTokenExists",
-          "group": "1_actions"
-        },
-        {
-          "command": "googleTasks.showCompleted",
-          "when": "GoogleUserTokenExists && HideCompleted",
-          "group": "2_preference"
-        },
-        {
-          "command": "googleTasks.hideCompleted",
-          "when": "GoogleUserTokenExists && ShowCompleted",
-          "group": "2_preference"
-        },
-        {
-          "command": "googleTasks.logout",
-          "when": "GoogleUserTokenExists",
-          "group": "3_auth"
         }
       ],
       "view/item/context": [
@@ -209,43 +213,73 @@
         },
         {
           "command": "googleTasks.addSubTask",
-          "when": "viewItem =~ /GTask$/",
+          "when": "viewItem =~ /GTask(\\+has-schedule)?$/",
           "group": "inline@1"
         },
         {
           "command": "googleTasks.renameTask",
-          "when": "viewItem =~ /GTaskSubItem|GTask$/",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)(\\+has-schedule)?$/",
           "group": "inline@2"
         },
         {
           "command": "googleTasks.completeTask",
-          "when": "viewItem =~ /GTaskSubItem|GTask$/",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)(\\+has-schedule)?$/",
           "group": "inline@3"
         },
         {
           "command": "googleTasks.deleteTask",
-          "when": "viewItem =~ /GTaskSubItem|GTask$/",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)(\\+has-schedule)?$/",
           "group": "inline@4"
         },
         {
+          "command": "googleTasks.setTaskSchedule",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)$/ && !(viewItem =~ /\\+has-schedule/)",
+          "group": "inline@5"
+        },
+        {
+          "command": "googleTasks.editTaskSchedule",
+          "when": "viewItem =~ /\\+has-schedule/",
+          "group": "inline@5"
+        },
+        {
+          "command": "googleTasks.clearTaskSchedule",
+          "when": "viewItem =~ /\\+has-schedule/",
+          "group": "inline@6"
+        },
+        {
           "command": "googleTasks.addSubTask",
-          "when": "viewItem =~ /GTask$/",
+          "when": "viewItem =~ /GTask(\\+has-schedule)?$/",
           "group": "1_actions@3"
         },
         {
           "command": "googleTasks.renameTask",
-          "when": "viewItem =~ /GTaskSubItem|GTask$/",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)(\\+has-schedule)?$/",
           "group": "1_actions"
         },
         {
           "command": "googleTasks.completeTask",
-          "when": "viewItem =~ /GTaskSubItem|GTask$/",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)(\\+has-schedule)?$/",
           "group": "1_actions"
         },
         {
           "command": "googleTasks.deleteTask",
-          "when": "viewItem =~ /GTaskSubItem|GTask$/",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)(\\+has-schedule)?$/",
           "group": "1_actions"
+        },
+        {
+          "command": "googleTasks.setTaskSchedule",
+          "when": "viewItem =~ /(GTaskSubItem|GTask)$/ && !(viewItem =~ /\\+has-schedule/)",
+          "group": "2_schedule@1"
+        },
+        {
+          "command": "googleTasks.editTaskSchedule",
+          "when": "viewItem =~ /\\+has-schedule/",
+          "group": "2_schedule@1"
+        },
+        {
+          "command": "googleTasks.clearTaskSchedule",
+          "when": "viewItem =~ /\\+has-schedule/",
+          "group": "2_schedule@2"
         }
       ]
     }
