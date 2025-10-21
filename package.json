@@ -3,6 +3,7 @@
   "displayName": "Google Tasks for VSCode (with Calendar)",
   "description": "Access Google Tasks list in the Tree View of VSCode",
   "publisher": "therealgorgan",
+  "homepage": "https://gorgan.dev/google-tasks-extension.html",
   "repository": {
     "type": "git",
     "url": "https://github.com/therealgorgan/google-tasks-vscode-extension"
