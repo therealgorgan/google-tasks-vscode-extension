@@ -25,6 +25,13 @@ export class GTask extends vscode.TreeItem {
 
     // Add context for scheduling menu visibility
     if (task.due) this.contextValue += '+has-schedule'
+
+    // Set command for double-click to edit task
+    this.command = {
+      title: 'Edit Task',
+      command: 'googleTasks.editTask',
+      arguments: [this],
+    }
   }
 
   // Overrides

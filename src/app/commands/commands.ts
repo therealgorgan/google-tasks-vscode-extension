@@ -46,6 +46,22 @@ const commandsList = {
   'googleTasks.deleteTaskList': async (node: GTaskList) => {
     gTaskTreeProvider.deleteTaskList({ tasklist: node.taskList.id || undefined })
   },
+  'googleTasks.renameTaskList': async (node: GTaskList) => {
+    if (!node.taskList.id) return
+
+    const title = await window.showInputBox({
+      prompt: 'Provide a new title for the task list',
+      placeHolder: 'Task list title',
+      value: node?.taskList?.title || undefined,
+      ignoreFocusOut: true,
+    })
+    if (title === undefined || title.length === 0) return
+
+    gTaskTreeProvider.updateTaskList({
+      tasklist: node.taskList.id,
+      requestBody: { title },
+    })
+  },
   'googleTasks.addTask': async (node: GTaskList) => {
     if (node.taskList.id === null) return
 
@@ -102,6 +118,24 @@ const commandsList = {
 
     const title = await window.showInputBox({
       prompt: 'Provide a title for the task',
+      placeHolder: 'Task title',
+      value: node?.task?.title || undefined,
+      ignoreFocusOut: true,
+    })
+    if (title === undefined || title.length === 0) return
+
+    gTaskTreeProvider.patchTask({
+      tasklist: node.taskListId,
+      task: node.task.id,
+      requestBody: { title },
+    })
+  },
+  'googleTasks.editTask': async (node: GTask) => {
+    // This is the same as renameTask - triggered on double-click
+    if (!node.task.id) return
+
+    const title = await window.showInputBox({
+      prompt: 'Edit task title',
       placeHolder: 'Task title',
       value: node?.task?.title || undefined,
       ignoreFocusOut: true,

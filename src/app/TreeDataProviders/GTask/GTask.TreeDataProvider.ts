@@ -1,11 +1,11 @@
 'use strict'
 
 import * as vscode from 'vscode'
-import {tasks_v1, google} from 'googleapis'
-import {OAuth2Client} from 'googleapis-common'
+import { tasks_v1, google } from 'googleapis'
+import { OAuth2Client } from 'googleapis-common'
 
-import {GTaskList} from './GTaskList.treeItem'
-import {GTask} from './GTask.treeItem'
+import { GTaskList } from './GTaskList.treeItem'
+import { GTask } from './GTask.treeItem'
 
 type GTaskTreeItem = GTask | GTaskList
 
@@ -17,7 +17,7 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
   private _showCompleted = false
 
   setOAuthClient(oAuth2Client: OAuth2Client): GTaskTreeProvider {
-    this.service = google.tasks({version: 'v1', auth: oAuth2Client})
+    this.service = google.tasks({ version: 'v1', auth: oAuth2Client })
     return this
   }
 
@@ -33,18 +33,20 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
       return []
     }
     if (!element) {
-      const {data} = await this.service.tasklists.list()
+      const { data } = await this.service.tasklists.list()
       const list = data.items || []
-      return Promise.all(
-        list.map(taskList =>
+      const items = await Promise.all(
+        list.map((taskList, index) =>
           GTaskListBuilder.build(
             taskList,
             // @ts-ignore
             this.service,
-            this._showCompleted
+            this._showCompleted,
+            index === 0  // Auto-expand first tasklist
           )
         )
       )
+      return items
     } else if (this._isTask(element)) {
       element.children.sort(sortTasks)
       return element.children.map(childTask => new GTask(element.taskListId, childTask))
@@ -63,7 +65,7 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
     return (gTaskTreeItem as GTask).task !== undefined
   }
 
-  refresh(options?: {showCompleted?: boolean}): void {
+  refresh(options?: { showCompleted?: boolean }): void {
     if (options && options.showCompleted !== undefined)
       this._showCompleted = Boolean(options.showCompleted)
     this._onDidChangeTreeData.fire(undefined)
@@ -76,6 +78,11 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
 
   async deleteTaskList(taskList: tasks_v1.Params$Resource$Tasklists$Delete) {
     await this.service?.tasklists.delete(taskList)
+    this.refresh()
+  }
+
+  async updateTaskList(taskList: tasks_v1.Params$Resource$Tasklists$Patch) {
+    await this.service?.tasklists.patch(taskList)
     this.refresh()
   }
 
@@ -96,20 +103,21 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
 }
 
 class GTaskListBuilder {
-  private constructor() {}
+  private constructor() { }
 
   static async build(
     taskList: tasks_v1.Schema$TaskList,
     service: tasks_v1.Tasks,
-    showCompleted: boolean
+    showCompleted: boolean,
+    isExpanded: boolean = false
   ): Promise<GTaskList> {
-    const {data} = await service.tasks.list({
+    const { data } = await service.tasks.list({
       tasklist: taskList.id || '',
       showHidden: showCompleted,
       showCompleted,
     })
     let list = data.items || []
-    let children: {[key: string]: tasks_v1.Schema$Task[]} = {}
+    let children: { [key: string]: tasks_v1.Schema$Task[] } = {}
     list = list.filter(task => {
       if (!task.parent) return true
 
@@ -118,10 +126,17 @@ class GTaskListBuilder {
       return false
     })
     list.sort(sortTasks)
-    return new GTaskList(
+    const gTaskList = new GTaskList(
       taskList,
       list.map(task => new GTask(taskList.id || '', task, children[task.id || 'error']))
     )
+
+    // Set expanded state for first tasklist
+    if (isExpanded) {
+      gTaskList.collapsibleState = vscode.TreeItemCollapsibleState.Expanded
+    }
+
+    return gTaskList
   }
 }
 
