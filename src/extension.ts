@@ -43,8 +43,8 @@ export function activate(context: vscode.ExtensionContext) {
   // Initialize Calendar provider with OAuth
   initializeCalendarOAuth()
 
-  // Register feature commands
-  registerCommands(scheduleWebViewProvider, context)
+  // Register feature commands (pass both providers)
+  registerCommands(scheduleWebViewProvider, calendarWebViewProvider, context)
 
   // Register calendar command
   const calendarCommand = vscode.commands.registerCommand('googleTasks.openCalendar', () => {

@@ -9,7 +9,7 @@
     "url": "https://github.com/therealgorgan/google-tasks-vscode-extension"
   },
   "icon": "resources/logo.png",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "aiKey": "c5722733-cc25-4ee0-bf89-febeea8257da",
   "engines": {
@@ -193,6 +193,11 @@
         "command": "googleTasks.openCalendar",
         "title": "Google Tasks: Open Calendar View",
         "icon": "$(calendar)"
+      },
+      {
+        "command": "googleTasks.createTaskEvent",
+        "title": "Google Tasks: Create Task Event (with time)",
+        "icon": "$(clock)"
       }
     ],
     "menus": {

@@ -52,12 +52,15 @@ function calendarEventToUnified(
         throw new Error('Calendar event must have an ID')
     }
 
+    // Check if this is a task event (calendar event tagged as task)
+    const isTaskEvent = event.extendedProperties?.private?.isTask === 'true'
+
     return {
         id: event.id,
-        type: 'calendar',
+        type: isTaskEvent ? 'task' : 'calendar', // Show task events as tasks
         title: event.summary || '(No title)',
         dueDate: dueDate,
-        dueDateTime: event.start?.dateTime,
+        dueDateTime: event.start?.dateTime, // Task events have time!
         description: event.description,
         isAllDay: !!event.start?.date,
         recurring: event.recurrence?.join(';'),

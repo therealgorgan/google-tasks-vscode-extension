@@ -6,8 +6,9 @@ import { OAuth2Client } from 'googleapis-common'
 
 import { GTaskList } from './GTaskList.treeItem'
 import { GTask } from './GTask.treeItem'
+import { CompletedTasksSection } from './CompletedTasks.treeItem'
 
-type GTaskTreeItem = GTask | GTaskList
+type GTaskTreeItem = GTask | GTaskList | CompletedTasksSection
 
 class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
   service?: tasks_v1.Tasks
@@ -35,7 +36,7 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
     if (!element) {
       const { data } = await this.service.tasklists.list()
       const list = data.items || []
-      const items = await Promise.all(
+      const taskLists = await Promise.all(
         list.map((taskList, index) =>
           GTaskListBuilder.build(
             taskList,
@@ -46,7 +47,19 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
           )
         )
       )
+
+      const items: GTaskTreeItem[] = [...taskLists]
+
+      // Add completed tasks section at the end
+      const completedSection = await this.buildCompletedTasksSection()
+      if (completedSection && completedSection.completedTasks.length > 0) {
+        items.push(completedSection)
+      }
+
       return items
+    } else if (this._isCompletedTasksSection(element)) {
+      // Return completed tasks when the section is expanded
+      return element.completedTasks
     } else if (this._isTask(element)) {
       element.children.sort(sortTasks)
       return element.children.map(childTask => new GTask(element.taskListId, childTask))
@@ -63,6 +76,51 @@ class GTaskTreeProvider implements vscode.TreeDataProvider<GTaskTreeItem> {
 
   private _isTask(gTaskTreeItem: GTaskTreeItem): gTaskTreeItem is GTask {
     return (gTaskTreeItem as GTask).task !== undefined
+  }
+
+  private _isCompletedTasksSection(gTaskTreeItem: GTaskTreeItem): gTaskTreeItem is CompletedTasksSection {
+    return (gTaskTreeItem as CompletedTasksSection).completedTasks !== undefined
+  }
+
+  private async buildCompletedTasksSection(): Promise<CompletedTasksSection | null> {
+    if (!this.service) return null
+
+    try {
+      const { data } = await this.service.tasklists.list()
+      const lists = data.items || []
+      const allCompletedTasks: GTask[] = []
+
+      // Fetch completed tasks from all task lists
+      for (const taskList of lists) {
+        if (taskList.id) {
+          const { data: tasksData } = await this.service.tasks.list({
+            tasklist: taskList.id,
+            showCompleted: true,
+            showHidden: true,
+          })
+
+          const tasks = tasksData.items || []
+          const completedTasks = tasks.filter(task => task.status === 'completed')
+
+          // Add completed tasks with their taskListId
+          completedTasks.forEach(task => {
+            allCompletedTasks.push(new GTask(taskList.id || '', task))
+          })
+        }
+      }
+
+      // Sort by completion date (most recent first)
+      allCompletedTasks.sort((a, b) => {
+        const aDate = a.task.completed || ''
+        const bDate = b.task.completed || ''
+        return bDate.localeCompare(aDate)
+      })
+
+      return new CompletedTasksSection(allCompletedTasks)
+    } catch (error) {
+      console.error('[GTaskTreeProvider] Error building completed tasks section:', error)
+      return null
+    }
   }
 
   refresh(options?: { showCompleted?: boolean }): void {

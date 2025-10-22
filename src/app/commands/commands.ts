@@ -9,8 +9,10 @@ import { GTaskList } from '../TreeDataProviders/GTask/GTaskList.treeItem'
 import { GTask } from '../TreeDataProviders/GTask/GTask.treeItem'
 import { showScheduleDialog, confirmClearSchedule } from '../utils/ScheduleDialog'
 import { ScheduleWebViewProvider } from '../providers/ScheduleWebViewProvider'
+import { CalendarWebViewProvider } from '../providers/CalendarWebViewProvider'
 
 let scheduleWebViewProvider: ScheduleWebViewProvider | undefined
+let calendarWebViewProvider: CalendarWebViewProvider | undefined
 
 const commandsList = {
   'googleTasks.logout': () => {
@@ -239,11 +241,51 @@ const commandsList = {
       },
     })
   },
+  'googleTasks.createTaskEvent': async (taskListNode?: GTaskList) => {
+    if (!calendarWebViewProvider) {
+      window.showErrorMessage('Calendar provider not initialized')
+      return
+    }
+
+    // Get title
+    const title = await window.showInputBox({
+      prompt: 'Task Event title',
+      placeHolder: 'Enter task event title',
+      ignoreFocusOut: true,
+    })
+    if (!title || title.length === 0) return
+
+    // Get description (optional)
+    const description = await window.showInputBox({
+      prompt: 'Description (optional)',
+      placeHolder: 'Enter description',
+      ignoreFocusOut: true,
+    })
+
+    // Get schedule with date and time
+    const schedule = await showScheduleDialog()
+    if (!schedule || !schedule.dueDateTime) return
+
+    try {
+      await calendarWebViewProvider.createTaskEvent({
+        title,
+        description,
+        dueDateTime: schedule.dueDateTime,
+        recurring: schedule.recurring,
+      })
+      window.showInformationMessage(`Task event "${title}" created!`)
+    } catch (error) {
+      window.showErrorMessage(`Failed to create task event: ${error}`)
+    }
+  },
 }
 
-export function registerCommands(provider?: ScheduleWebViewProvider, context?: ExtensionContext): void {
+export function registerCommands(provider?: ScheduleWebViewProvider, calendarProvider?: CalendarWebViewProvider, context?: ExtensionContext): void {
   if (provider) {
     scheduleWebViewProvider = provider
+  }
+  if (calendarProvider) {
+    calendarWebViewProvider = calendarProvider
   }
   const disposables: Disposable[] = []
   Object.entries(commandsList).forEach(([command, handler]) => {

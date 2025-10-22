@@ -18,6 +18,7 @@ interface CalendarMessage {
   eventId?: string
   eventData?: any
   itemType?: 'calendar' | 'task'
+  mode?: 'create' | 'edit'
   formData?: {
     title: string
     date: string
@@ -57,6 +58,52 @@ export class CalendarWebViewProvider {
    */
   setTaskProvider(taskProvider: any) {
     this.taskProvider = taskProvider
+  }
+
+  /**
+   * Create a task event (calendar event tagged as task with full time support)
+   */
+  async createTaskEvent(eventData: {
+    title: string
+    description?: string
+    dueDateTime: string
+    recurring?: string
+  }): Promise<void> {
+    if (!this.calendarProvider) {
+      throw new Error('Calendar provider not initialized')
+    }
+
+    try {
+      // Calculate end time (1 hour after start)
+      const startDate = new Date(eventData.dueDateTime)
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000)
+
+      // Parse recurring pattern if provided
+      let recurrence: string[] | undefined
+      if (eventData.recurring) {
+        recurrence = [eventData.recurring]
+      }
+
+      await this.calendarProvider.createEvent({
+        summary: eventData.title,
+        description: eventData.description,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        isAllDay: false,
+        recurrence,
+        isTask: true, // Tag as task event
+      })
+
+      console.log('[Calendar] Task event created successfully')
+
+      // Refresh calendar if open
+      if (this.panel) {
+        await this.refreshCalendar()
+      }
+    } catch (error) {
+      console.error('[Calendar] Error creating task event:', error)
+      throw error
+    }
   }
 
   /**
@@ -228,13 +275,18 @@ export class CalendarWebViewProvider {
 
         case 'submitEventForm':
           if (message.formData) {
-            if (this.eventFormMode === 'create') {
-              await this.submitCreateEvent(message.formData)
-            } else if (this.eventFormMode === 'edit' && this.editingEventId) {
-              if (this.editingEventType === 'task') {
-                await this.submitEditTask(this.editingEventId, message.formData, this.editingTaskListId)
+            const itemType = message.itemType || 'calendar'
+            if (message.mode === 'create') {
+              if (itemType === 'task') {
+                await this.submitCreateTaskFromForm(message.formData)
               } else {
-                await this.submitEditEvent(this.editingEventId, message.formData)
+                await this.submitCreateEvent(message.formData)
+              }
+            } else if (message.mode === 'edit' && message.eventId) {
+              if (itemType === 'task') {
+                await this.submitEditTask(message.eventId, message.formData, message.eventData?.taskListId)
+              } else {
+                await this.submitEditEvent(message.eventId, message.formData)
               }
             }
             this.eventFormMode = undefined
@@ -443,6 +495,65 @@ export class CalendarWebViewProvider {
     } catch (error) {
       console.error('[Calendar] Error creating event:', error)
       vscode.window.showErrorMessage(`Failed to create event: ${error}`)
+    }
+  }
+
+  /**
+   * Submit form data to create a new task (as calendar event)
+   */
+  private async submitCreateTaskFromForm(formData: any): Promise<void> {
+    if (!this.taskProvider || !formData.title) return
+
+    try {
+      console.log('[Calendar] Creating task from form:', formData)
+
+      // Build due date/time for Google Task
+      const { date, time, isAllDay } = formData
+      let dueDate: string
+
+      if (isAllDay) {
+        // For all-day tasks, use midnight UTC
+        dueDate = new Date(`${date}T00:00:00.000Z`).toISOString()
+      } else {
+        // For tasks with specific time
+        dueDate = new Date(`${date}T${time}:00`).toISOString()
+      }
+
+      // Get the first (default) task list
+      const service = this.taskProvider.service
+      if (!service) {
+        vscode.window.showErrorMessage('Google Tasks service not initialized')
+        return
+      }
+
+      const { data } = await service.tasklists.list()
+      const taskLists = data.items || []
+
+      if (taskLists.length === 0) {
+        vscode.window.showErrorMessage('No task lists found. Please create a task list first.')
+        return
+      }
+
+      const defaultTaskListId = taskLists[0].id
+
+      console.log('[Calendar] Creating task in list:', taskLists[0].title, 'with due date:', dueDate)
+
+      // Create the Google Task with due date
+      await this.taskProvider.addTask({
+        tasklist: defaultTaskListId,
+        requestBody: {
+          title: formData.title,
+          due: dueDate,
+          notes: `Created from calendar on ${date}${!isAllDay ? ' at ' + time : ''}`
+        }
+      })
+
+      console.log('[Calendar] Task created successfully!')
+      vscode.window.showInformationMessage(`Task created in ${taskLists[0].title}!`)
+      await this.refreshCalendar()
+    } catch (error) {
+      console.error('[Calendar] Error creating task:', error)
+      vscode.window.showErrorMessage(`Failed to create task: ${error}`)
     }
   }
 
@@ -1095,6 +1206,55 @@ export class CalendarWebViewProvider {
             margin: 0;
           }
 
+          .form-options-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+          }
+
+          .radio-group-inline {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          }
+
+          .radio-label-inline {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border: 1px solid var(--vscode-input-border);
+            background: var(--vscode-input-background);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+            white-space: nowrap;
+          }
+
+          .radio-label-inline:hover {
+            background: var(--vscode-list-hoverBackground);
+            border-color: var(--vscode-focusBorder);
+          }
+
+          .radio-label-inline input[type="radio"] {
+            margin: 0;
+            cursor: pointer;
+            width: 12px;
+            height: 12px;
+          }
+
+          .radio-label-inline input[type="radio"]:checked + span {
+            font-weight: 600;
+            color: var(--vscode-textLink-activeForeground);
+          }
+
+          .radio-label-inline span {
+            font-size: 12px;
+            line-height: 1;
+          }
+
           .form-actions {
             display: flex;
             gap: 8px;
@@ -1154,15 +1314,27 @@ export class CalendarWebViewProvider {
               </div>
 
               <div class="form-group" id="allDayFormGroup">
-                <div class="checkbox-group">
-                  <input type="checkbox" id="eventAllDay" name="isAllDay" onchange="toggleTimeInput()" onclick="event.stopPropagation()">
-                  <label for="eventAllDay" style="margin: 0;">All-day event</label>
+                <div class="form-options-row">
+                  <div class="checkbox-group">
+                    <input type="checkbox" id="eventAllDay" name="isAllDay" onchange="toggleTimeInput()" onclick="event.stopPropagation()">
+                    <label for="eventAllDay" style="margin: 0;">All-day event</label>
+                  </div>
+                  <div class="radio-group-inline">
+                    <label class="radio-label-inline">
+                      <input type="radio" id="eventTypeEvent" name="eventType" value="calendar" checked onchange="toggleEventType()" onclick="event.stopPropagation()">
+                      <span>📅 Event</span>
+                    </label>
+                    <label class="radio-label-inline">
+                      <input type="radio" id="eventTypeTask" name="eventType" value="task" onchange="toggleEventType()" onclick="event.stopPropagation()">
+                      <span>✓ Task</span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
               <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="cancelEventForm()">Cancel</button>
-                <button type="submit" class="btn" id="saveButton">Save Event</button>
+                <button type="submit" class="btn" id="saveButton">Create Event</button>
               </div>
             </form>
           </div>
@@ -1304,6 +1476,8 @@ export class CalendarWebViewProvider {
             const dateInput = document.getElementById('eventDate');
             const timeInput = document.getElementById('eventTime');
             const allDayCheckbox = document.getElementById('eventAllDay');
+            const eventTypeEvent = document.getElementById('eventTypeEvent');
+            const eventTypeTask = document.getElementById('eventTypeTask');
 
             // Check if form elements exist
             if (!form || !formTitle || !titleInput || !dateInput || !timeInput || !allDayCheckbox) {
@@ -1321,6 +1495,15 @@ export class CalendarWebViewProvider {
             const itemType = eventData.itemType || 'calendar';
             const isTask = itemType === 'task';
             
+            // Set radio buttons based on item type
+            if (eventTypeEvent && eventTypeTask) {
+              if (isTask) {
+                eventTypeTask.checked = true;
+              } else {
+                eventTypeEvent.checked = true;
+              }
+            }
+            
             // Update title based on type
             if (mode === 'create') {
               formTitle.textContent = isTask ? 'New Task' : 'New Event';
@@ -1329,6 +1512,7 @@ export class CalendarWebViewProvider {
             }
             
             titleInput.value = eventData.title || '';
+            titleInput.placeholder = isTask ? 'Task title' : 'Event title';
             dateInput.value = eventData.date || new Date().toISOString().split('T')[0];
             timeInput.value = eventData.time || '09:00';
             allDayCheckbox.checked = eventData.isAllDay || false;
@@ -1338,29 +1522,24 @@ export class CalendarWebViewProvider {
             form.dataset.eventId = eventId || '';
             form.dataset.itemType = itemType;
 
-            // Hide time-related fields for tasks (Tasks API doesn't support times)
+            // Both calendar events and tasks support times since tasks are stored as calendar events
             const timeFormGroup = document.getElementById('timeFormGroup');
             const allDayFormGroup = document.getElementById('allDayFormGroup');
             const saveButton = document.getElementById('saveButton');
-            const formRow = timeFormGroup ? timeFormGroup.parentElement : null;
             
-            if (isTask) {
-              // Tasks only support dates, not times
-              if (timeFormGroup) timeFormGroup.style.display = 'none';
-              if (allDayFormGroup) allDayFormGroup.style.display = 'none';
-              if (saveButton) saveButton.textContent = mode === 'create' ? 'Create Task' : 'Save Task';
-              if (formRow && formRow.classList.contains('form-row')) formRow.classList.add('full');
-              timeInput.value = '00:00'; // Set default time for tasks
-              timeInput.removeAttribute('required'); // Time not required for tasks
-            } else {
-              // Events support times and all-day option
-              if (timeFormGroup) timeFormGroup.style.display = '';
-              if (allDayFormGroup) allDayFormGroup.style.display = '';
-              if (saveButton) saveButton.textContent = mode === 'create' ? 'Create Event' : 'Save Event';
-              if (formRow && formRow.classList.contains('form-row')) formRow.classList.remove('full');
-              timeInput.setAttribute('required', 'required'); // Time required for events (unless all-day)
-              toggleTimeInput();
+            // Update button text based on type
+            if (saveButton) {
+              saveButton.textContent = mode === 'create' 
+                ? (isTask ? 'Create Task' : 'Create Event')
+                : (isTask ? 'Save Task' : 'Save Event');
             }
+            
+            // Ensure time fields are visible
+            if (timeFormGroup) timeFormGroup.style.display = '';
+            if (allDayFormGroup) allDayFormGroup.style.display = '';
+            
+            // Enable time input based on all-day checkbox
+            toggleTimeInput();
             
             form.classList.add('active');
             titleInput.focus();
@@ -1376,6 +1555,36 @@ export class CalendarWebViewProvider {
             }
           }
 
+          function toggleEventType() {
+            const eventTypeTask = document.getElementById('eventTypeTask');
+            const saveButton = document.getElementById('saveButton');
+            const formTitle = document.getElementById('formTitle');
+            const form = document.getElementById('eventForm');
+            const titleInput = document.getElementById('eventTitle');
+            
+            if (!eventTypeTask || !saveButton || !formTitle || !form) return;
+
+            const isTask = eventTypeTask.checked;
+            const mode = form.dataset.mode || 'create';
+            
+            // Update form title
+            if (mode === 'create') {
+              formTitle.textContent = isTask ? 'New Task' : 'New Event';
+            } else {
+              formTitle.textContent = isTask ? 'Edit Task' : 'Edit Event';
+            }
+            
+            // Update button text
+            saveButton.textContent = mode === 'create' 
+              ? (isTask ? 'Create Task' : 'Create Event')
+              : (isTask ? 'Save Task' : 'Save Event');
+            
+            // Update placeholder
+            titleInput.placeholder = isTask ? 'Task title' : 'Event title';
+            
+            // Note: We keep time fields visible for both types since calendar-based tasks support times
+          }
+
           function submitEventForm(event) {
             event.preventDefault();
 
@@ -1384,6 +1593,7 @@ export class CalendarWebViewProvider {
             const dateInput = document.getElementById('eventDate');
             const timeInput = document.getElementById('eventTime');
             const allDayCheckbox = document.getElementById('eventAllDay');
+            const eventTypeTask = document.getElementById('eventTypeTask');
 
             if (!form || !titleInput || !dateInput || !timeInput || !allDayCheckbox) {
               console.error('[Calendar] Form elements not found during submit');
@@ -1396,6 +1606,9 @@ export class CalendarWebViewProvider {
               return;
             }
 
+            // Get the selected event type from radio buttons
+            const selectedItemType = eventTypeTask && eventTypeTask.checked ? 'task' : 'calendar';
+
             const formData = {
               title: titleInput.value,
               date: dateInput.value,
@@ -1405,13 +1618,12 @@ export class CalendarWebViewProvider {
 
             const mode = form.dataset.mode || 'create';
             const eventId = form.dataset.eventId || null;
-            const itemType = form.dataset.itemType || 'calendar';
 
             vscode.postMessage({
               type: 'submitEventForm',
               mode: mode,
               eventId: eventId,
-              itemType: itemType,
+              itemType: selectedItemType,
               formData: formData
             });
 
